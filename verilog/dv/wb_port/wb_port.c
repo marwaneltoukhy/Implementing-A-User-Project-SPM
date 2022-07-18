@@ -80,8 +80,19 @@ void main()
     // Flag start of the test
 	reg_mprj_datal = 0xAB600000;
 
-    reg_mprj_slave = 0x00002710;
-    if (reg_mprj_slave == 0x2B3D) {
+    reg_wb_enable = 1;
+    reg_mprj_slave_X = 10;
+    reg_wb_enable = 0;
+    reg_wb_enable = 1;
+    reg_mprj_slave_Y = 3;
+    reg_wb_enable = 0;
+    reg_wb_enable = 1;
+    long long p0 = reg_mprj_slave_P0;
+    reg_wb_enable = 0;
+    reg_wb_enable = 1;
+    long long p1 = reg_mprj_slave_P1;
+    
+    if (p0== 30 && p1==0) {
         reg_mprj_datal = 0xAB610000;
     }
 }
