@@ -19,10 +19,16 @@
 #include <defs.h>
 #include <stub.c>
 
+// Defining the registers addresses 
+#define reg_mprj_slave_X (*(volatile uint32_t*)0x30000000)
+#define reg_mprj_slave_Y (*(volatile uint32_t*)0x30000004)
+#define reg_mprj_slave_P0 (*(volatile uint32_t*)0x30000008)
+#define reg_mprj_slave_P1 (*(volatile uint32_t*)0x3000000C)
+
 /*
 	Wishbone Test:
-		- Configures MPRJ lower 8-IO pins as outputs
-		- Checks counter value through the wishbone port
+		- Writes two values in the multiplier and multiplicand registers
+		- Checks the product register that it contains the correct value
 */
 
 void main()

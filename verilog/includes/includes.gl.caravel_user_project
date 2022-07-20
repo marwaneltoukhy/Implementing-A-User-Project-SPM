@@ -1,5 +1,4 @@
 # Caravel user project includes	     
 -v $(USER_PROJECT_VERILOG)/gl/user_project_wrapper.v	     
 -v $(USER_PROJECT_VERILOG)/gl/user_proj_mul32.v
--v $(USER_PROJECT_VERILOG)/rtl/mul32.v
--v $(USER_PROJECT_VERILOG)/rtl/spm.v     
+ 
