@@ -1,5 +1,15 @@
 # Implementing-A-User-Project-SPM
 
+## Table of Contents
+* [Project Description](#project-description)
+* [Prerequisites](#prerequisites)
+* [Caravel](#caravel)
+* [Openlane](#openlane)
+* [SPM Design](#spm-design)
+* [Wishbone Communication](#wishbone-communication)
+* [Design Implementation](#design-implementation)
+* [Design Simulation](#design-simulation)
+
 ## Project Description
 In this project we will be building on the [Caravel User Project](https://github.com/efabless/caravel_user_project) and show how we can use the template to harden our design a Serial-Parallel-Multiplier (SPM) and integrate it within the [caravel](https://github.com/efabless/caravel) chip. 
 
@@ -82,7 +92,7 @@ There are 10 signals used to write/read to a wishbone slave port that are summar
 <img width="611" alt="Screen Shot 2022-07-31 at 5 45 33 PM" src="https://user-images.githubusercontent.com/56173018/182034333-32c4c42a-5ecf-4818-ad4d-2c0c36ea2c9b.png">
 </p>
   
-## Steps to Implement Our Design
+## Design Implementation
 1. You must use the cravel_user_project template to create your own repo and setup your environment as mentioned in [Quick start for caravel_user_project](https://github.com/efabless/caravel_user_project/blob/main/docs/source/quickstart.rst) <br/>
 2. Copy the design's source files [spm.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/spm.v), [mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/mul32.v), [user_proj_mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/user_proj_mul32.v) into ``caravel_user_project/verilog/rtl`` <br/>
 3. Navigate  ``caravel_user_project/openlane`` folder then make a copy of the forder ``user_proj_example`` into ``user_proj_mul32``. <br/>
@@ -98,7 +108,7 @@ make user_proj_mul32
 make user_project_wrapper
 ``` 
 
-## Testing Our design
+## Design Simulation
 Generally, a testbench is used to make sure that a design is working before actually fabricating it since fabrication is an expensive process. When we write a testbench we want to make sure that the design is performing the correct functionality. A testbench in caravel user’s project is written as a c file and a verilog file. The c file is the one that has code to be executed on the management core, thus this file is the one controlling the signals sent to any peripheral device in the user’s project area. The verilog file (or test bench)  is used to simulate the management core and its interaction with the user project area. 
 
 Using the same test bench, there are 3 types of verification that can be performed summarized in the below table:
