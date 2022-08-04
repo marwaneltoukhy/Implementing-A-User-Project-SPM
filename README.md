@@ -108,6 +108,12 @@ make user_proj_mul32
 make user_project_wrapper
 ``` 
 
+### Final Reports and Checks:
+Openlane's ASIC flow ends with physical verification. This begins by streaming out the GDS followed by running DRC, LVS, and Antenna checks on the design. 
+* A final summary report is produced by default as ``<run-path>/reports/final_summary_report.csv``, for more details about the contents of the report check this [documentation](https://github.com/The-OpenROAD-Project/OpenLane/blob/master/regression_results/datapoint_definitions.md).  
+* A final manufacturability report is produced by default as ``<run-path>/reports/manufacturability_report.csv``, this report contains the magic DRC, the LVS, and the antenna violations summaries.
+* The final GDS-II file can be found under ``<run-path>/results/final/gds``
+
 ## Design Simulation
 Generally, a testbench is used to make sure that a design is working before actually fabricating it since fabrication is an expensive process. When we write a testbench we want to make sure that the design is performing the correct functionality. A testbench in caravel user’s project is written as a c file and a verilog file. The c file is the one that has code to be executed on the management core, thus this file is the one controlling the signals sent to any peripheral device in the user’s project area. The verilog file (or test bench)  is used to simulate the management core and its interaction with the user project area. 
 
