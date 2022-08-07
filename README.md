@@ -2,7 +2,6 @@
 
 ## Table of Contents
 * [Project Description](#project-description)
-* [Prerequisites](#prerequisites)
 * [Caravel](#caravel)
 * [Openlane](#openlane)
 * [SPM Design](#spm-design)
@@ -12,9 +11,6 @@
 
 ## Project Description
 In this project we will be building on the [Caravel User Project](https://github.com/efabless/caravel_user_project) and show how we can use the template to harden our design a Serial-Parallel-Multiplier (SPM) and integrate it within the [caravel](https://github.com/efabless/caravel) chip. 
-
-## Prerequisites 
-You must go throw the [Quick start for caravel_user_project](https://github.com/efabless/caravel_user_project/blob/main/docs/source/quickstart.rst) tutorial to familiarize yourself on how to setup your environment and what are the dependencies you need to install before you start working on the project. 
 
 ## Caravel
 [Caravel](https://github.com/efabless/caravel) is a template SoC for Efabless Open MPW and chipIgnite shuttles based on the Sky130 node from SkyWater Technologies. It provides a wrapper for the user project area where the user can add their own designs. <br/>
@@ -87,32 +83,125 @@ Product (least significant 32 bits) | P[31:0] | 0x30000008 | reg_mprj_slave_P0
 Product (most significant 32 bits) | P[63:32] | 0x3000000C | reg_mprj_slave_P1 
 
 There are 10 signals used to write/read to a wishbone slave port that are summarized in the below table:
+Signal Name in verilog |	# bits |	Signal meaning |	How is the signal used?
+--- | --- | --- | --- 
+wb_clk_i |	1 |	Clock |	A square wave that can be at either high or low. Data is read or written at either the posedge (positive edge) or negedge (negative edge)
+wb_rst_i | 1 | Reset | A reset restores the status of all registers to the initial value (which is normally zero)
+wbs_stb_i/wbs_cyc_i |	1 |	Strobe/Bus Cycle |	If both of these signals are high this means that there is a valid data transfer taking place. The ANDing of those two signals is the enable signal for any slave port register. 
+wbs_we_i | 1 |	Write enable for input | If this signal is high, then a write operation is taking place, if it is low, then a read operation is taking place.
+wbs_sel_i |	4	| Select for input | If a write operation is taking place, the slave port has a 32-bit register. That register is divided into 4 8-bit units. Each bit on this bus tells if the corresponding 8-bits coming from the wbs_dat_i should be written or not. For example, if wbs_sel_i[0] is 1 and this is a write operation, then the slave register bits 0-7 are going to be updated with the values read from wbs_dat_i[7:0]
+wbs_dat_i |	32 | Input data |	This is the data that is written from a master to a slave in a write operation
+wbs_adr_i |	32 | Input Address | Each slave port is mapped to an address in memory. wbs_adr_i specifies that address. 
+wbs_ack_o |	1	| Acknowledgement |	This signal is set to high following a successful read or write operation. In the case of the SPM, a read operation for the P register is not going to take place until the multiplication is done, which means that wbs_ack_o will stay low until the multiplication is finished.
+wbs_dat_o	| 32 | Output Data | At the end of a write operation, the data sent on wbs_dat_o is the same as the input data received from wbs_dat_i which indicates a successful read operation. At the end of a read operation, the data sent on wbs_dat_o is the data stored in slave port with address wbs_adr_i
+
+The above table explains what each signal means in a wishbone slave and how each signal can be used. In the figure below, it shows a slave port register for MP and MC in the SPM. This figure is not valid for the Product registers (register storing the product) since the ack signal when reading from P is dependent on the completeness of the multiplication operation as well. 
 
 <p align="center">
-<img width="611" alt="Screen Shot 2022-07-31 at 5 45 33 PM" src="https://user-images.githubusercontent.com/56173018/182034333-32c4c42a-5ecf-4818-ad4d-2c0c36ea2c9b.png">
+  <img src="https://user-images.githubusercontent.com/56173018/183260884-6f0ecae7-02dd-42d5-93e6-57fc70c2a198.png" alt="slave port"/>
 </p>
   
 ## Design Implementation
-1. You must use the cravel_user_project template to create your own repo and setup your environment as mentioned in [Quick start for caravel_user_project](https://github.com/efabless/caravel_user_project/blob/main/docs/source/quickstart.rst) <br/>
-2. Copy the design's source files [spm.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/spm.v), [mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/mul32.v), [user_proj_mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/user_proj_mul32.v) into ``caravel_user_project/verilog/rtl`` <br/>
-3. Navigate  ``caravel_user_project/openlane`` folder then make a copy of the forder ``user_proj_example`` into ``user_proj_mul32``. <br/>
-4. Replace the ``config.tcl`` file in the ``user_proj_mul32`` folder that you just created with this [config.tcl](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/openlane/user_proj_mul32/config.tcl) file. <br/>
-5. Now you can harden the design using [openlane](https://github.com/The-OpenROAD-Project/OpenLane); inside the folder ``caravel_user_project``, run the following command 
+In this section we will discuss the steps needed to start your project, setup your environment, then harden the design along with the wrapper. We will be using the first technique while hardening; which is hardening the design first then inserting the hardened design in the user project wrapper, then hardening the user project wrapper.
+
+1. To start the project you first need to create a new repository based on the [caravel_user_project](https://github.com/efabless/caravel_user_project/) template and make sure your repo is public and includes a README.
+
+   *   Follow https://github.com/efabless/caravel_user_project/generate to create a new repository.
+   *   Clone the reposity using the following command:
+  
+```bash    
+git clone <your github repo URL>
+```
+
+2. To setup your local environment run:
+```bash
+cd <project_name> # project_name is the name of your repo
+
+mkdir dependencies
+
+export OPENLANE_ROOT=$(pwd)/dependencies/openlane_src # you need to export this whenever you start a new shell
+
+export PDK_ROOT=$(pwd)/dependencies/pdks # you need to export this whenever you start a new shell
+
+# export the PDK variant depending on your shuttle, if you don't know leave it to the default
+export PDK=sky130B
+
+make setup
+```
+
+- This command will setup your environment by installing the following:
+  * caravel_lite (a lite version of caravel)
+  * management core for simulation
+  * openlane to harden your design
+  * pdk
+
+
+3. The environment is now ready we can start adding our SPM Design files; copy the design's source files [spm.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/spm.v), [mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/mul32.v), [user_proj_mul32.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/rtl/user_proj_mul32.v) into ``<project_name>/verilog/rtl`` <br/>
+
+4. To Harden the design using [Openlane](https://github.com/The-OpenROAD-Project/OpenLane) you need to:
+  * Navigate  ``<project_name>/openlane`` folder to make a copy of the forder ``user_proj_example`` into ``user_proj_mul32``. <br/>
+  * Edit to the configurations file ``config.tcl`` in the ``user_proj_mul32`` folder that you just created as follows:
+  ```script
+##### Change the design name
+set ::env(DESIGN_NAME) user_proj_mul32
+
+##### Specify the design files
+set ::env(VERILOG_FILES) "\
+	$::env(CARAVEL_ROOT)/verilog/rtl/defines.v \
+	$script_dir/../../verilog/rtl/user_proj_mul32.v \
+	$script_dir/../../verilog/rtl/mul32.v \
+	$script_dir/../../verilog/rtl/spm.v"
+  
+##### Disable basic placement
+# set ::env(PL_BASIC_PLACEMENT) 1
+
+##### Increase the target density:
+set ::env(PL_TARGET_DENSITY) 0.35
+```
+To learn more about openlane configurations check out this [documentation](https://github.com/The-OpenROAD-Project/OpenLane/blob/master/configuration/README.md)
+  * Now our design is ready to be hardened; inside the folder ``caravel_user_project``, run the following command 
 ```bash
 make user_proj_mul32
-``` 
-6. To get the project wrapper ready; go to the folder ``caravel_user_project/verilog/rtl`` an edit the file ``user_project_wrapper.v`` to change user_proj_example to user_proj_mul32. <br/>
-7. Replace the ``config.tcl`` file under ``caravel_user_project/openlane/user_project_wrapper`` with this [config.tcl](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/openlane/user_project_wrapper/config.tcl) file. <br/>
-8. Harden the project wrapper; inside the folder ``caravel_user_project``, run the following command 
+  ``` 
+5. Now that our design is hardened, we need to harden the project wrapper 
+  * Go to the folder ``caravel_user_project/verilog/rtl`` an edit the file ``user_project_wrapper.v`` to change the module being instantiated from user_proj_example to user_proj_mul32. 
+  * Edit the wrapper's configurations file ``config.tcl`` under ``<project_name>/openlane/user_project_wrapper`` as follows:
+```script
+##### Black-box verilog and views 
+set ::env(VERILOG_FILES_BLACKBOX) "\
+	$::env(CARAVEL_ROOT)/verilog/rtl/defines.v \
+	$script_dir/../../verilog/rtl/user_proj_mul32.v"
+
+set ::env(EXTRA_LEFS) "\
+	$script_dir/../../lef/user_proj_mul32.lef"
+
+set ::env(EXTRA_GDS_FILES) "\
+	$script_dir/../../gds/user_proj_mul32.gds"
+
+##### Add the following line 
+set ::env(GLB_RT_ADJUSTMENT) 0.1
+```
+  * Now you can harden the project wrapper; inside the folder ``caravel_user_project``, run the following command 
 ```bash
 make user_project_wrapper
 ``` 
 
-### Final Reports and Checks:
-Openlane's ASIC flow ends with physical verification. This begins by streaming out the GDS followed by running DRC, LVS, and Antenna checks on the design. 
+### Hardening Outputs and Reports
+* The ``make <design_name>`` command starts the ASIC flow to produce the layout in GDS2 format starting from the design HDL files. When the flow finishes, you should see the message:
+```bash
+[SUCCESS]: Flow complete.
+```
+* As the flow runs, it produces lots of files, such as reports and log files, under the ``run_path``:
+``<project_name>/openlane/<design_name>/runs/<design_name>``
+  
+* Openlane's ASIC flow ends with physical verification. This begins by streaming out the GDS followed by running DRC, LVS, and Antenna checks on the design. 
 * A final summary report is produced by default as ``<run-path>/reports/final_summary_report.csv``, for more details about the contents of the report check this [documentation](https://github.com/The-OpenROAD-Project/OpenLane/blob/master/regression_results/datapoint_definitions.md).  
 * A final manufacturability report is produced by default as ``<run-path>/reports/manufacturability_report.csv``, this report contains the magic DRC, the LVS, and the antenna violations summaries.
-* The final GDS-II file can be found under ``<run-path>/results/final/gds``
+* The final GDS-II file can be found under ``<run-path>/results/final/gds`` and can be displayed using Klayout
+* You can also examine the layout after each step (for planning, placement, cts, ...), we can load the step DEF file produced by any step into Klayout. For example, to examine the layout after floor-planning, do the following:
+  * Copy the LEF file ``<run_path>/tmp/merged.lef`` into the the folder ``<run_path>/results/floorplan``:
+  * Invoke Klayout
+  * Inside klayout: File ⇒ Import ⇒ DEF/LEF, then choose the def file inside the floorplan folder and make sure that the ``merged.lef`` file is used as well.
 
 ## Design Simulation
 Generally, a testbench is used to make sure that a design is working before actually fabricating it since fabrication is an expensive process. When we write a testbench we want to make sure that the design is performing the correct functionality. A testbench in caravel user’s project is written as a c file and a verilog file. The c file is the one that has code to be executed on the management core, thus this file is the one controlling the signals sent to any peripheral device in the user’s project area. The verilog file (or test bench)  is used to simulate the management core and its interaction with the user project area. 
