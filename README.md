@@ -67,38 +67,38 @@ The third module and its the top module of our project is [user_proj_mul32.v](ht
 ## Wishbone Communication
 We implement the SPM in the user project area as a peripheral that can be accessed by firmware on the management SoC. The management core communicates with the SPM using the wishbone bus, there are other ways of communication such as the Logic Analyzer (LA) signals, however, in this project, only the wishbone communication is going to be discussed. <br/>
 
-As shown in the [caravel architecture](#caravel), the management core exposes the wishbone bus to the user’s project area. This wishbone bus is used for communication between the management core and the peripheral implemented in the user’s project area. In this case, the management core is called a “master” and the peripheral in the user’s project area is called a “slave”. The reason for that is that the management core is the one initiating any read or write operation. The wishbone bus is a shared bus among all the peripherals in the user’s project area, which means that at any point in time, the management core can communicate with only one slave in the user’s project area. <br/>
+As shown in the [caravel architecture](#caravel), the management core exposes the wishbone bus to the user’s project area. This wishbone bus is used for communication between the management core and the peripheral implemented in the user’s project area. In this case, the management core is called a “master” and the peripheral in the user’s project area is called a “$lave”. The reason for that is that the management core is the one initiating any read or write operation. The wishbone bus is a shared bus among all the peripherals in the user’s project area, which means that at any point in time, the management core can communicate with only one $lave in the user’s project area. <br/>
 
 <p align="center">
 <img width="662" alt="Screen Shot 2022-07-31 at 5 01 39 PM" src="https://user-images.githubusercontent.com/56173018/182033252-d2defdf4-4a59-4cb2-b597-56fd7c3e5fe9.png">
 </p>
 
-As shown in the above figure, the user’s project area in our case has 4 registers, where each one is considered a slave. These registers  correspond to the multiplicand, the multiplier and 2 registers for the product since the wishbone bus has a data bus of width 32 bits only. The registers are memory-mapped, which means that they can be accessed using addresses in the memory. The addresses used for these 4 variables are shown in the below table: <br/>
+As shown in the above figure, the user’s project area in our case has 4 registers, where each one is considered a $lave. These registers  correspond to the multiplicand, the multiplier and 2 registers for the product since the wishbone bus has a data bus of width 32 bits only. The registers are memory-mapped, which means that they can be accessed using addresses in the memory. The addresses used for these 4 variables are shown in the below table: <br/>
 
 Operand | Variable in Verilog | Address in memory | Name of register 
 --- | --- | --- | --- 
-Multiplicand | MC | 0x30000000 | reg_mprj_slave_X 
-Multiplier | MP | 0x30000004 | reg_mprj_slave_Y
-Product (least significant 32 bits) | P[31:0] | 0x30000008 | reg_mprj_slave_P0 
-Product (most significant 32 bits) | P[63:32] | 0x3000000C | reg_mprj_slave_P1 
+Multiplicand | MC | 0x30000000 | reg_mprj_$lave_X 
+Multiplier | MP | 0x30000004 | reg_mprj_$lave_Y
+Product (least significant 32 bits) | P[31:0] | 0x30000008 | reg_mprj_$lave_P0 
+Product (most significant 32 bits) | P[63:32] | 0x3000000C | reg_mprj_$lave_P1 
 
-There are 10 signals used to write/read to a wishbone slave port that are summarized in the below table:
+There are 10 signals used to write/read to a wishbone $lave port that are summarized in the below table:
 Signal Name in verilog |	# bits |	Signal meaning |	How is the signal used?
 --- | --- | --- | --- 
 wb_clk_i |	1 |	Clock |	A square wave that can be at either high or low. Data is read or written at either the posedge (positive edge) or negedge (negative edge)
 wb_rst_i | 1 | Reset | A reset restores the status of all registers to the initial value (which is normally zero)
-wbs_stb_i/wbs_cyc_i |	1 |	Strobe/Bus Cycle |	If both of these signals are high this means that there is a valid data transfer taking place. The ANDing of those two signals is the enable signal for any slave port register. 
+wbs_stb_i/wbs_cyc_i |	1 |	Strobe/Bus Cycle |	If both of these signals are high this means that there is a valid data transfer taking place. The ANDing of those two signals is the enable signal for any $lave port register. 
 wbs_we_i | 1 |	Write enable for input | If this signal is high, then a write operation is taking place, if it is low, then a read operation is taking place.
-wbs_sel_i |	4	| Select for input | If a write operation is taking place, the slave port has a 32-bit register. That register is divided into 4 8-bit units. Each bit on this bus tells if the corresponding 8-bits coming from the wbs_dat_i should be written or not. For example, if wbs_sel_i[0] is 1 and this is a write operation, then the slave register bits 0-7 are going to be updated with the values read from wbs_dat_i[7:0]
-wbs_dat_i |	32 | Input data |	This is the data that is written from a master to a slave in a write operation
-wbs_adr_i |	32 | Input Address | Each slave port is mapped to an address in memory. wbs_adr_i specifies that address. 
+wbs_sel_i |	4	| Select for input | If a write operation is taking place, the $lave port has a 32-bit register. That register is divided into 4 8-bit units. Each bit on this bus tells if the corresponding 8-bits coming from the wbs_dat_i should be written or not. For example, if wbs_sel_i[0] is 1 and this is a write operation, then the $lave register bits 0-7 are going to be updated with the values read from wbs_dat_i[7:0]
+wbs_dat_i |	32 | Input data |	This is the data that is written from a master to a $lave in a write operation
+wbs_adr_i |	32 | Input Address | Each $lave port is mapped to an address in memory. wbs_adr_i specifies that address. 
 wbs_ack_o |	1	| Acknowledgement |	This signal is set to high following a successful read or write operation. In the case of the SPM, a read operation for the P register is not going to take place until the multiplication is done, which means that wbs_ack_o will stay low until the multiplication is finished.
-wbs_dat_o	| 32 | Output Data | At the end of a write operation, the data sent on wbs_dat_o is the same as the input data received from wbs_dat_i which indicates a successful read operation. At the end of a read operation, the data sent on wbs_dat_o is the data stored in slave port with address wbs_adr_i
+wbs_dat_o	| 32 | Output Data | At the end of a write operation, the data sent on wbs_dat_o is the same as the input data received from wbs_dat_i which indicates a successful read operation. At the end of a read operation, the data sent on wbs_dat_o is the data stored in $lave port with address wbs_adr_i
 
-The above table explains what each signal means in a wishbone slave and how each signal can be used. In the figure below, it shows a slave port register for MP and MC in the SPM. This figure is not valid for the Product registers (register storing the product) since the ack signal when reading from P is dependent on the completeness of the multiplication operation as well. 
+The above table explains what each signal means in a wishbone $lave and how each signal can be used. In the figure below, it shows a $lave port register for MP and MC in the SPM. This figure is not valid for the Product registers (register storing the product) since the ack signal when reading from P is dependent on the completeness of the multiplication operation as well. 
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/56173018/183260884-6f0ecae7-02dd-42d5-93e6-57fc70c2a198.png" alt="slave port"/>
+  <img src="https://user-images.githubusercontent.com/56173018/183260884-6f0ecae7-02dd-42d5-93e6-57fc70c2a198.png" alt="$lave port"/>
 </p>
   
 ## Design Implementation
@@ -213,12 +213,12 @@ RTL (Register Transfer Level) | The RTL is the verilog code that was written by 
 GL (Gate Level) | In OpenLane flow, a gate level netlist is generated after the synthesis (the first step in the flow) and then updated in multiple other steps. This means that it is necessary to harden the design before performing GL or GL-SDF simulations. | make verify-testbench_name-gl
 SDF (Standard Delay Format) | SDF is a file format which is generated by the Static timing analysis (STA) tool. Simply explained, the SDF has more accurate information about the delays caused by each wire, which might cause timing violations. | make verify-testbench_name-gl-sdf
 
-Returning back to the SPM example, here are the two files for the test bench, [wb_port.c](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/dv/wb_port/wb_port.c) and [wb_port.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/dv/wb_port/wb_port.v). We defined the names of the 4 registers that were used by the SPM; reg_mprj_slave_X, reg_mprj_slave_Y, reg_mprj_slave_P0 and reg_mprj_slave_P1. Those names are going to be used as variable names in the c file. For example, if we write in c:
+Returning back to the SPM example, here are the two files for the test bench, [wb_port.c](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/dv/wb_port/wb_port.c) and [wb_port.v](https://github.com/ZeyadZaki/Implementing-A-User-Project-SPM/blob/main/verilog/dv/wb_port/wb_port.v). We defined the names of the 4 registers that were used by the SPM; reg_mprj_$lave_X, reg_mprj_$lave_Y, reg_mprj_$lave_P0 and reg_mprj_$lave_P1. Those names are going to be used as variable names in the c file. For example, if we write in c:
 
 ```script
-reg_mprj_slave_X = 3
-reg_mprj_slave_Y = 10
-if(reg_mprj_slave_P0 == 30 && reg_mprj_slave_P1==0)
+reg_mprj_$lave_X = 3
+reg_mprj_$lave_Y = 10
+if(reg_mprj_$lave_P0 == 30 && reg_mprj_$lave_P1==0)
 ```
 This means: write 3 to the multiplicand register and write 10 to the multiplier register . Then read the product registers, if the product is equal to 30, do the statements following the if condition. Also, in the c file, there is a variable called ``reg_wb_enable``, which must be set to 1 preceding any read or write operation. We also manipulate a variable called ``reg_mprj_datal``, because this corresponds to the ``mprj_io[15:0]`` bits in the verilog test bench. We check the changes in the value stored on those bits to know if a successful multiplication operation has taken place. 
 
